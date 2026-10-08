@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tô com Lula · Plenária de Mobilização da Vitória</title>
+<meta name="description" content="Plenária de Mobilização da Vitória com André Ceciliano e Andrezinho Ceciliano. Coloque sua foto na arte Tô com Lula e compartilhe.">
+<meta name="theme-color" content="#e8040c">
+<meta property="og:type" content="website">
+<meta property="og:title" content="TÔ COM LULA! Plenária de Mobilização da Vitória">
+<meta property="og:description" content="Terça-feira, 13 de outubro, 18h · GRESP. Coloque sua foto na arte e mande pra todo mundo.">
+<meta property="og:image" content="/img/og.jpg">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="tag">Terça · 13 de outubro · 18h · GRESP</div>
+  <h1>Tô com <span>Lula!</span></h1>
+  <p>Plenária de Mobilização da Vitória.<br>Coloque sua foto na arte e mande pra todo mundo.</p>
+</header>
+
+<main>
+  <section class="card preview" id="preview" aria-label="Prévia da arte">
+    <canvas id="tela" width="2418" height="3224"></canvas>
+    <div class="dica" id="dica" hidden>Arraste a foto para ajustar</div>
+    <div class="gravando" id="gravando" hidden>Gravando vídeo</div>
+  </section>
+
+  <section class="passos">
+    <div class="card passo">
+      <h2><b>1</b> Sua foto</h2>
+      <div class="foto-alvo">
+        <span class="btn btn-foto" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span id="txtFoto">Escolher foto</span>
+        </span>
+        <input type="file" id="arquivo" accept="image/*" aria-label="Escolher foto">
+      </div>
+      <p class="aviso-foto" id="avisoFoto" role="status" hidden></p>
+      <div class="ajuste" id="ajuste" hidden>
+        <label for="zoom">Zoom <span id="zoomVal">100%</span></label>
+        <input type="range" id="zoom" min="100" max="300" value="100">
+        <div class="dupla">
+          <button class="btn btn-sec" id="girar" type="button">↻ Girar</button>
+          <button class="btn btn-sec" id="centralizar" type="button">Centralizar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card passo">
+      <h2><b>2</b> Imagem ou vídeo</h2>
+      <div class="abas" role="group" aria-label="Formato">
+        <button type="button" id="abaImg" aria-pressed="true">Imagem</button>
+        <button type="button" id="abaVid" aria-pressed="false">Vídeo com música</button>
+      </div>
+
+      <div id="painelImg">
+        <p>Uma foto pronta pra status, grupo e perfil.</p>
+        <div class="pilha mt12">
+          <button class="btn btn-zap" id="compartilhar" type="button" hidden>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.9 9.9 0 0 0 4.74 1.21c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm5.8 14.02c-.24.68-1.42 1.3-1.95 1.35-.5.05-1.13.07-1.83-.11-.42-.13-.96-.31-1.65-.61-2.9-1.25-4.8-4.17-4.94-4.36-.14-.2-1.18-1.57-1.18-3s.75-2.13 1.02-2.42c.27-.29.58-.36.78-.36h.56c.18 0 .42-.07.66.5.24.58.82 2.01.9 2.15.07.15.12.32.02.51-.1.2-.14.32-.29.49-.14.17-.3.38-.43.51-.14.14-.29.3-.13.59.17.29.74 1.22 1.59 1.97 1.09.97 2.01 1.27 2.3 1.42.29.14.46.12.63-.07.17-.2.73-.85.92-1.14.2-.29.39-.24.66-.14.27.1 1.7.8 1.99.95.29.14.49.22.56.34.07.12.07.7-.17 1.38z"/></svg>
+            Compartilhar no WhatsApp
+          </button>
+          <button class="btn btn-baixar" id="baixar" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16"/></svg>
+            Baixar imagem
+          </button>
+        </div>
+      </div>
+
+      <div id="painelVid" hidden>
+        <p class="rotulo">Música</p>
+        <div class="musicas" id="musicas"></div>
+        <div class="propria">
+          <span class="btn btn-sec">♪ Usar uma música do meu celular
+            <input type="file" id="audioProprio" accept="audio/*" aria-label="Escolher música do celular">
+          </span>
+        </div>
+        <p class="rotulo">Duração</p>
+        <div class="duracao" role="group" aria-label="Duração do vídeo">
+          <button type="button" data-s="15" aria-pressed="true">15 s</button>
+          <button type="button" data-s="30" aria-pressed="false">30 s</button>
+          <button type="button" data-s="60" aria-pressed="false">60 s</button>
+        </div>
+        <div class="pilha mt14">
+          <button class="btn btn-video" id="gerarVideo" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg>
+            <span id="txtVideo">Gerar vídeo</span>
+          </button>
+          <button class="btn btn-zap" id="compartilharVid" type="button" hidden>Compartilhar vídeo no WhatsApp</button>
+          <button class="btn btn-baixar" id="baixarVid" type="button" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16"/></svg>
+            Baixar vídeo
+          </button>
+        </div>
+        <div class="barra" id="barra" hidden><i id="barraIn"></i></div>
+        <p class="sem-musica mt12">O vídeo é gravado em tempo real: deixe esta tela aberta até terminar.</p>
+      </div>
+      <p class="status" id="status">Coloque sua foto. A arte muda na hora.</p>
+    </div>
+
+    <p class="privacidade">Sua foto não sai do seu aparelho. A arte e o vídeo são montados no seu navegador e nada é enviado pra servidor.</p>
+  </section>
+</main>
+<footer>Plenária de Mobilização da Vitória · Terça, 13 de outubro, 18h · GRESP</footer>
+</body>
+</html>
