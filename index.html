@@ -86,6 +86,16 @@
           <button type="button" data-s="30" aria-pressed="false">30 s</button>
           <button type="button" data-s="60" aria-pressed="false">60 s</button>
         </div>
+        <div class="trecho" id="trecho" hidden>
+          <p class="rotulo">Trecho da música</p>
+          <canvas class="onda" id="onda" aria-label="Onda da música: toque ou arraste para escolher o trecho"></canvas>
+          <input type="range" id="inicio" min="0" max="0" value="0" step="1" aria-label="Início do trecho">
+          <div class="trecho-linha">
+            <span id="trechoTxt">Carregando a música…</span>
+            <button type="button" class="ouvir" id="ouvirTrecho" disabled>▶ Ouvir trecho</button>
+          </div>
+          <p class="dica-trecho">Toque ou arraste na onda (ou use a barra) pra escolher a parte da música que vai no vídeo.</p>
+        </div>
         <div class="pilha mt14">
           <button class="btn btn-video" id="gerarVideo" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg>

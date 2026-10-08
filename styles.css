@@ -99,5 +99,13 @@ input[type=range]{width:100%;accent-color:var(--vermelho);height:28px}
 .privacidade{font-size:12px;color:var(--suave);text-align:center;line-height:1.45}
 footer{text-align:center;color:var(--suave);font-size:12px;padding:0 16px 32px;line-height:1.5}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.trecho{margin-top:4px}
+.onda{display:block;width:100%;height:72px;border-radius:10px;background:var(--fundo);touch-action:none;cursor:pointer}
+.trecho input[type=range]{margin-top:6px}
+.trecho-linha{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
+.ouvir{border:0;background:var(--vermelho);color:var(--branco);border-radius:99px;padding:10px 16px;font-weight:800;font-size:14px;min-height:44px}
+.ouvir:disabled{opacity:.5}
+.dica-trecho{font-size:13px!important;margin-top:6px}
+.musica{cursor:pointer;font:inherit;color:inherit}
 .mt12{margin-top:12px}.mt14{margin-top:14px}
 #painelVid > .rotulo:first-child{margin-top:0}

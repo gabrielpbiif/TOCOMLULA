@@ -5,9 +5,13 @@
   const CIRC = { x: 1208, y: 1388, r: 779 };   // buraco transparente da foto
   // Lista de músicas: arquivos publicados junto com a página (pasta musicas/). inicio = segundo em que o vídeo começa a tocar.
   // >>> MÚSICAS: coloque os arquivos .mp3/.m4a na pasta musicas/ e adicione uma linha por música.
-  // titulo = nome que aparece; sub = linha pequena embaixo; arquivo = nome do arquivo; inicio = segundo em que começa a tocar.
+  // titulo = nome que aparece; sub = linha pequena embaixo; arquivo = nome do arquivo; inicio = segundo sugerido (a pessoa pode mudar o trecho).
   const MUSICAS = [
-    // { titulo: 'Nome da música', sub: 'Jingle Lula 2026', arquivo: 'musica1.mp3', inicio: 0 },
+    { titulo: 'Lula Lá (Sem medo de ser feliz)', sub: '3:18', arquivo: 'lula-la.mp3', inicio: 0 },
+    { titulo: 'Bora Lula', sub: '1:41', arquivo: 'bora-lula.mp3', inicio: 0 },
+    { titulo: 'Tapete Vermelho', sub: '3:32', arquivo: 'tapete-vermelho.mp3', inicio: 0 },
+    { titulo: 'Rap do Silva', sub: '1:35', arquivo: 'rap-do-silva.mp3', inicio: 0 },
+    { titulo: 'O Show Tem Que Continuar', sub: '3:30', arquivo: 'o-show-tem-que-continuar.mp3', inicio: 0 },
   ].map(m => ({ ...m, url: 'musicas/' + encodeURIComponent(m.arquivo) }));
 
   const tela = document.getElementById('tela'), ctx = tela.getContext('2d');
@@ -159,47 +163,111 @@
 
   // ---------- músicas ----------
   const lista = document.getElementById('musicas');
-  let escolhida = null, audioProprio = null, tocando = null, duracao = 15;
-  const ouvinte = new Audio();
+  let escolhida = null, audioProprio = null, duracao = 15;
+  let ac = null, buf = null, bufId = null, inicio = 0, pre = null, preFim = 0;
+  const trechoBox = document.getElementById('trecho'), onda = document.getElementById('onda'), og = onda.getContext('2d');
+  const inicioEl = document.getElementById('inicio'), trechoTxt = document.getElementById('trechoTxt'), btnOuvir = document.getElementById('ouvirTrecho');
+  const mmss = t => { t = Math.max(0, Math.round(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+  const audioCtx = () => { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); return ac; };
+  const durTrecho = () => buf ? Math.min(duracao, buf.duration) : duracao;
+  const maxInicio = () => buf ? Math.max(0, buf.duration - durTrecho()) : 0;
+  let picos = null;
+
+  function calcPicos(){
+    const d = buf.getChannelData(0), n = 240, passo = Math.floor(d.length / n), p = new Float32Array(n);
+    for (let i = 0; i < n; i++){ let m = 0; for (let k = i * passo, e = k + passo; k < e; k += 16){ const v = Math.abs(d[k]); if (v > m) m = v; } p[i] = m; }
+    const mx = Math.max(...p) || 1; picos = p.map(v => v / mx);
+  }
+  function desenharOnda(){
+    const r = onda.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    onda.width = Math.round(r.width * dpr); onda.height = Math.round(r.height * dpr);
+    const w = onda.width, h = onda.height; og.clearRect(0, 0, w, h);
+    if (!buf || !picos) return;
+    const a = inicio / buf.duration * w, b = (inicio + durTrecho()) / buf.duration * w;
+    og.fillStyle = 'rgba(232,4,12,.10)'; og.fillRect(a, 0, b - a, h);
+    const bw = w / picos.length;
+    picos.forEach((v, i) => {
+      const x = i * bw, hh = Math.max(2 * dpr, v * h * 0.86);
+      og.fillStyle = (x + bw / 2 >= a && x + bw / 2 <= b) ? '#e8040c' : '#e9c4c0';
+      og.fillRect(x + bw * 0.15, (h - hh) / 2, bw * 0.7, hh);
+    });
+    og.strokeStyle = '#e8040c'; og.lineWidth = 2 * dpr; og.strokeRect(a + dpr, dpr, b - a - 2 * dpr, h - 2 * dpr);
+    if (pre && preFim){
+      const t = Math.min(audioCtx().currentTime - pre.t0, durTrecho()), x = (inicio + Math.max(0, t)) / buf.duration * w;
+      og.fillStyle = '#0433c9'; og.fillRect(x - dpr, 0, 2 * dpr, h);
+    }
+  }
+  function atualizarTrecho(){
+    inicio = Math.max(0, Math.min(maxInicio(), inicio));
+    inicioEl.max = Math.floor(maxInicio() * 10); inicioEl.value = Math.round(inicio * 10);
+    trechoTxt.textContent = buf ? mmss(inicio) + ' até ' + mmss(inicio + durTrecho()) + ' de ' + mmss(buf.duration) : 'Carregando a música…';
+    desenharOnda();
+  }
+  async function carregar(m){
+    pararPre(); buf = null; picos = null; bufId = m.id; trechoBox.hidden = false; btnOuvir.disabled = true; atualizarTrecho();
+    try {
+      const r = await fetch(m.url); if (!r.ok) throw 0;
+      const dados = await r.arrayBuffer();
+      const b = await new Promise((ok, erro) => { const p = audioCtx().decodeAudioData(dados, ok, erro); if (p && p.catch) p.catch(erro); });
+      if (bufId !== m.id) return;
+      buf = b; calcPicos(); inicio = Math.min(m.inicio || 0, maxInicio()); btnOuvir.disabled = false; atualizarTrecho();
+    } catch (e){ if (bufId === m.id){ trechoTxt.textContent = 'Não consegui abrir essa música. Escolha outra.'; } }
+  }
+  function pararPre(){
+    if (pre){ try { pre.src.stop(); } catch (e){} pre = null; }
+    preFim = 0; btnOuvir.textContent = '▶ Ouvir trecho';
+  }
+  function tocarPre(){
+    if (!buf) return; pararPre(); const c = audioCtx(); c.resume();
+    const src = c.createBufferSource(), g = c.createGain(); src.buffer = buf; src.connect(g); g.connect(c.destination);
+    const t0 = c.currentTime + 0.03, d = durTrecho();
+    g.gain.setValueAtTime(1, t0); g.gain.setValueAtTime(1, t0 + d - 0.8); g.gain.linearRampToValueAtTime(0, t0 + d);
+    src.start(t0, inicio, d); pre = { src, t0 }; preFim = 1; btnOuvir.textContent = '■ Parar';
+    src.onended = () => { if (pre && pre.src === src) pararPre(); desenharOnda(); };
+    const anim = () => { if (pre && pre.src === src){ desenharOnda(); requestAnimationFrame(anim); } }; requestAnimationFrame(anim);
+  }
+  btnOuvir.addEventListener('click', () => { if (pre) pararPre(); else tocarPre(); desenharOnda(); });
+  inicioEl.addEventListener('input', () => { inicio = inicioEl.value / 10; atualizarTrecho(); if (pre) tocarPre(); });
+  // arrastar na onda: o trecho fica centralizado onde o dedo está
+  let arrastando = false;
+  const moverPara = e => { if (!buf) return; const r = onda.getBoundingClientRect(); inicio = (e.clientX - r.left) / r.width * buf.duration - durTrecho() / 2; atualizarTrecho(); };
+  onda.addEventListener('pointerdown', e => { if (!buf) return; arrastando = true; onda.setPointerCapture(e.pointerId); pararPre(); moverPara(e); });
+  onda.addEventListener('pointermove', e => { if (arrastando) moverPara(e); });
+  const soltarOnda = () => { if (arrastando){ arrastando = false; tocarPre(); } };
+  onda.addEventListener('pointerup', soltarOnda); onda.addEventListener('pointercancel', soltarOnda);
+  window.addEventListener('resize', desenharOnda);
+
   function montarLista(){
     lista.innerHTML = '';
     const itens = MUSICAS.map((m, i) => ({ ...m, id: 'm' + i }));
     if (audioProprio) itens.push({ titulo: audioProprio.name.replace(/\.[^.]+$/, ''), sub: 'Do seu celular', id: 'proprio', url: audioProprio.url, inicio: 0 });
     if (!itens.length){
       const p = document.createElement('p'); p.className = 'sem-musica';
-      p.textContent = 'As músicas da campanha entram aqui em breve. Enquanto isso, use uma música do seu celular.';
+      p.textContent = 'Nenhuma música disponível. Use uma música do seu celular.';
       lista.appendChild(p); return;
     }
-    if (!escolhida || !itens.some(m => m.id === escolhida.id)) escolhida = itens[0];
     itens.forEach(m => {
-      const b = document.createElement('div'); b.className = 'musica'; b.setAttribute('role', 'button'); b.tabIndex = 0;
-      b.setAttribute('aria-pressed', escolhida.id === m.id);
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'musica';
+      b.setAttribute('aria-pressed', !!escolhida && escolhida.id === m.id);
       const bola = document.createElement('span'); bola.className = 'bola';
       const txt = document.createElement('span'); const t = document.createElement('strong'); t.textContent = m.titulo;
       const s = document.createElement('small'); s.textContent = m.sub || ''; txt.append(t, s);
-      const ou = document.createElement('button'); ou.type = 'button'; ou.className = 'ouvir';
-      ou.textContent = tocando === m.id ? '■ Parar' : '▶ Ouvir';
-      ou.addEventListener('click', ev => {
-        ev.stopPropagation();
-        if (tocando === m.id){ ouvinte.pause(); tocando = null; }
-        else { ouvinte.src = m.url; ouvinte.currentTime = m.inicio || 0; ouvinte.play().catch(() => {}); tocando = m.id; }
-        montarLista();
+      b.append(bola, txt);
+      b.addEventListener('click', () => {
+        if (escolhida && escolhida.id === m.id) return;
+        escolhida = m; limparVideo(); montarLista(); carregar(m);
       });
-      const pick = () => { escolhida = m; limparVideo(); montarLista(); };
-      b.addEventListener('click', pick);
-      b.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); pick(); } });
-      b.append(bola, txt, ou); lista.appendChild(b);
+      lista.appendChild(b);
     });
   }
-  ouvinte.addEventListener('ended', () => { tocando = null; montarLista(); });
   document.getElementById('audioProprio').addEventListener('change', e => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
     if (audioProprio) URL.revokeObjectURL(audioProprio.url);
     audioProprio = { name: f.name, url: URL.createObjectURL(f) };
-    escolhida = { id: 'proprio', url: audioProprio.url, inicio: 0 }; limparVideo(); montarLista(); e.target.value = '';
+    escolhida = { id: 'proprio', url: audioProprio.url, inicio: 0 }; limparVideo(); montarLista(); carregar(escolhida); e.target.value = '';
   });
   document.querySelectorAll('.duracao button').forEach(b => b.addEventListener('click', () => {
-    duracao = +b.dataset.s; limparVideo();
+    duracao = +b.dataset.s; limparVideo(); atualizarTrecho(); if (pre) tocarPre();
     document.querySelectorAll('.duracao button').forEach(x => x.setAttribute('aria-pressed', x === b));
   }));
   montarLista();
@@ -210,6 +278,7 @@
   const barra = document.getElementById('barra'), barraIn = document.getElementById('barraIn');
   let gravando = false, video = null;
   function limparVideo(){ if (gravando) return; video = null; btnBaixarVid.hidden = btnZapVid.hidden = true; txtVideo.textContent = 'Gerar vídeo'; }
+  inicioEl.addEventListener('change', limparVideo); onda.addEventListener('pointerup', limparVideo);
   function formato(){
     const op = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
     if (!window.MediaRecorder) return null;
@@ -218,42 +287,35 @@
   btnGerar.addEventListener('click', async () => {
     if (gravando || !precisaFoto()) return;
     if (!escolhida){ status.textContent = 'Escolha uma música (ou use uma do seu celular).'; return; }
+    if (!buf){ status.textContent = 'A música ainda está carregando. Tente de novo em instantes.'; return; }
     const tipo = formato();
     if (tipo === null || !tela.captureStream){ status.textContent = 'Este navegador não grava vídeo. Abra o site no Chrome ou no Safari atualizado.'; return; }
-    ouvinte.pause(); tocando = null; montarLista();
-    gravando = true; btnGerar.disabled = true; txtVideo.textContent = 'Preparando…';
-    status.textContent = 'Carregando a música…';
-    let ac;
+    pararPre();
+    gravando = true; btnGerar.disabled = true; btnOuvir.disabled = true; inicioEl.disabled = true;
     try {
-      const resp = await fetch(escolhida.url); if (!resp.ok) throw new Error('fetch');
-      ac = new (window.AudioContext || window.webkitAudioContext)();
-      const buf = await ac.decodeAudioData(await resp.arrayBuffer());
-      const ini = Math.min(escolhida.inicio || 0, Math.max(0, buf.duration - 1));
-      const dur = Math.min(duracao, buf.duration - ini);
-
-      // canvas de saída 1080×1440 (mesma proporção da arte)
+      const c = audioCtx(); await c.resume();
+      const ini = inicio, dur = durTrecho();
       const out = document.createElement('canvas'); out.width = 1080; out.height = 1440;
       const g = out.getContext('2d'); const k = 1080 / W;
-      const ganho = ac.createGain(), dest = ac.createMediaStreamDestination();
-      ganho.connect(dest); ganho.connect(ac.destination);
-      const fonte = ac.createBufferSource(); fonte.buffer = buf; fonte.connect(ganho);
+      const ganho = c.createGain(), dest = c.createMediaStreamDestination();
+      ganho.connect(dest); ganho.connect(c.destination);
+      const fonte = c.createBufferSource(); fonte.buffer = buf; fonte.connect(ganho);
       const fluxo = out.captureStream(30);
       dest.stream.getAudioTracks().forEach(t => fluxo.addTrack(t));
       const rec = new MediaRecorder(fluxo, tipo ? { mimeType: tipo, videoBitsPerSecond: 5e6, audioBitsPerSecond: 128e3 } : undefined);
       const partes = []; rec.ondataavailable = e => { if (e.data && e.data.size) partes.push(e.data); };
       const fim = new Promise(r => { rec.onstop = r; });
-
       pintar(g, k, 1);
       document.getElementById('gravando').hidden = false; barra.hidden = false; barraIn.style.width = '0';
       txtVideo.textContent = 'Gravando…'; status.textContent = 'Gravando… deixe esta tela aberta.';
       rec.start(250);
-      const t0 = ac.currentTime + 0.05;
-      ganho.gain.setValueAtTime(1, t0); ganho.gain.setValueAtTime(1, t0 + dur - 1); ganho.gain.linearRampToValueAtTime(0, t0 + dur);
+      const t0 = c.currentTime + 0.05;
+      ganho.gain.setValueAtTime(0, t0); ganho.gain.linearRampToValueAtTime(1, t0 + 0.4);
+      ganho.gain.setValueAtTime(1, t0 + dur - 1); ganho.gain.linearRampToValueAtTime(0, t0 + dur);
       fonte.start(t0, ini, dur);
       await new Promise(resolve => {
         const quadro = () => {
-          const t = Math.max(0, ac.currentTime - t0), p = Math.min(1, t / dur);
-          // aproximação lenta + leve batida a cada 0,5 s
+          const t = Math.max(0, c.currentTime - t0), p = Math.min(1, t / dur);
           const pulso = 1 + 0.08 * p + 0.012 * Math.max(0, Math.cos(t * Math.PI * 4));
           pintar(g, k, pulso);
           barraIn.style.width = (p * 100).toFixed(1) + '%';
@@ -262,7 +324,7 @@
         requestAnimationFrame(quadro);
       });
       rec.stop(); await fim;
-      fonte.disconnect(); ac.close().catch(() => {});
+      try { fonte.disconnect(); ganho.disconnect(); } catch (e){}
       const mime = (rec.mimeType || tipo || 'video/webm').split(';')[0];
       video = { blob: new Blob(partes, { type: mime }), ext: /mp4/.test(mime) ? 'mp4' : 'webm', mime };
       btnBaixarVid.hidden = false; btnZapVid.hidden = !podeCompartilhar(mime);
@@ -270,9 +332,9 @@
       status.textContent = video.ext === 'mp4' ? 'Vídeo pronto! Baixe ou compartilhe.' : 'Vídeo pronto (formato WebM). Se o WhatsApp não aceitar, gere de novo pelo Chrome atualizado ou pelo Safari do iPhone.';
     } catch (err){
       status.textContent = 'Não consegui gerar o vídeo com essa música. Tente outra música ou outro navegador.';
-      if (ac) ac.close().catch(() => {});
     } finally {
-      gravando = false; btnGerar.disabled = false; document.getElementById('gravando').hidden = true; barra.hidden = true;
+      gravando = false; btnGerar.disabled = false; btnOuvir.disabled = !buf; inicioEl.disabled = false;
+      document.getElementById('gravando').hidden = true; barra.hidden = true;
       if (!video) txtVideo.textContent = 'Gerar vídeo';
     }
   });

@@ -6,7 +6,7 @@ Site estático: o eleitor coloca a foto no círculo da arte "Tô com Lula" (Plen
 1. Coloque os arquivos `.mp3` ou `.m4a` na pasta `musicas/`.
 2. No topo do `app.js`, adicione uma linha por música na lista `MUSICAS`:
    `{ titulo: 'Nome', sub: 'Jingle Lula', arquivo: 'nome-do-arquivo.mp3', inicio: 0 },`
-   (`inicio` = segundo em que o vídeo começa a tocar)
+   (`inicio` = trecho sugerido; no site a pessoa escolhe o trecho arrastando na onda da música)
 3. Commit + push. Sem música na lista, a aba de vídeo só oferece "usar música do celular".
 
 ## Segurança
