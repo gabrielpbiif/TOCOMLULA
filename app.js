@@ -49,6 +49,19 @@
     g.restore();
   }
   const desenhar = () => pintar(ctx, 1, 1);
+  // reduz uma imagem em etapas de no máximo 2x (fica bem mais nítido que reduzir de uma vez)
+  function reduzir(src, w, h){
+    let cw = src.width || src.naturalWidth, ch = src.height || src.naturalHeight, atual = src;
+    while (cw / 2 > w && ch / 2 > h){
+      cw = Math.round(cw / 2); ch = Math.round(ch / 2);
+      const t = document.createElement('canvas'); t.width = cw; t.height = ch;
+      const tg = t.getContext('2d'); tg.imageSmoothingEnabled = true; tg.imageSmoothingQuality = 'high';
+      tg.drawImage(atual, 0, 0, cw, ch); atual = t;
+    }
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const cg = c.getContext('2d'); cg.imageSmoothingEnabled = true; cg.imageSmoothingQuality = 'high';
+    cg.drawImage(atual, 0, 0, w, h); return c;
+  }
   modelo.onload = desenhar;
   if (document.fonts && document.fonts.load) document.fonts.load('400 100px Anton').then(desenhar).catch(() => {});
 
@@ -140,10 +153,9 @@
   // ---------- imagem ----------
   const gerarImg = () => new Promise(r => {
     desenhar();
-    const c = document.createElement('canvas'); c.width = 1620; c.height = 2160;
-    const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
-    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-    g.drawImage(tela, 0, 0, c.width, c.height); c.toBlob(r, 'image/jpeg', 0.9);
+    const c = reduzir(tela, 1620, 2160), g = c.getContext('2d');
+    g.globalCompositeOperation = 'destination-over'; g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
+    c.toBlob(r, 'image/jpeg', 0.95);
   });
   document.getElementById('baixar').addEventListener('click', async () => {
     if (!precisaFoto()) return;
@@ -280,7 +292,8 @@
   function limparVideo(){ if (gravando) return; video = null; btnBaixarVid.hidden = btnZapVid.hidden = true; txtVideo.textContent = 'Gerar vídeo'; }
   inicioEl.addEventListener('change', limparVideo); onda.addEventListener('pointerup', limparVideo);
   function formato(){
-    const op = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+    // H.264 primeiro: é o que o WhatsApp e o iPhone aceitam sem converter
+    const op = ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a', 'video/mp4;codecs=avc1.640028,opus', 'video/mp4;codecs=avc1,opus', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
     if (!window.MediaRecorder) return null;
     return op.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch (e){ return false; } }) || '';
   }
@@ -297,15 +310,31 @@
       const ini = inicio, dur = durTrecho();
       const out = document.createElement('canvas'); out.width = 1080; out.height = 1440;
       const g = out.getContext('2d'); const k = 1080 / W;
+      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+      // camadas prontas antes de gravar: arte já no tamanho do vídeo e foto reduzida com nitidez
+      const arteV = reduzir(modelo, 1080, 1440);
+      limitar();
+      const sMax = base() * escala * 1.05 * k;
+      const fotoV = reduzir(foto, Math.max(1, Math.round(foto.width * sMax)), Math.max(1, Math.round(foto.height * sMax)));
+      const cx = (CIRC.x + offX) * k, cy = (CIRC.y + offY) * k, raio = CIRC.r * k;
+      const quadroVideo = z => {
+        g.clearRect(0, 0, 1080, 1440);
+        g.save(); g.beginPath(); g.arc(CIRC.x * k, CIRC.y * k, raio + 2, 0, Math.PI * 2); g.clip();
+        g.fillStyle = '#ffffff'; g.fillRect(0, 0, 1080, 1440);
+        const dw = fotoV.width * z / 1.05, dh = fotoV.height * z / 1.05;
+        g.drawImage(fotoV, cx - dw / 2, cy - dh / 2, dw, dh);
+        g.restore();
+        g.drawImage(arteV, 0, 0);
+      };
       const ganho = c.createGain(), dest = c.createMediaStreamDestination();
       ganho.connect(dest); ganho.connect(c.destination);
       const fonte = c.createBufferSource(); fonte.buffer = buf; fonte.connect(ganho);
       const fluxo = out.captureStream(30);
       dest.stream.getAudioTracks().forEach(t => fluxo.addTrack(t));
-      const rec = new MediaRecorder(fluxo, tipo ? { mimeType: tipo, videoBitsPerSecond: 5e6, audioBitsPerSecond: 128e3 } : undefined);
+      const rec = new MediaRecorder(fluxo, tipo ? { mimeType: tipo, videoBitsPerSecond: 10e6, audioBitsPerSecond: 128e3 } : undefined);
       const partes = []; rec.ondataavailable = e => { if (e.data && e.data.size) partes.push(e.data); };
       const fim = new Promise(r => { rec.onstop = r; });
-      pintar(g, k, 1);
+      quadroVideo(1);
       document.getElementById('gravando').hidden = false; barra.hidden = false; barraIn.style.width = '0';
       txtVideo.textContent = 'Gravando…'; status.textContent = 'Gravando… deixe esta tela aberta.';
       rec.start(250);
@@ -316,7 +345,9 @@
       await new Promise(resolve => {
         const quadro = () => {
           const t = Math.max(0, c.currentTime - t0), p = Math.min(1, t / dur);
-          pintar(g, k, 1);   // arte parada: só a música toca
+          // movimento suave: a foto aproxima devagar (até 5%) ao longo do vídeo, sem batida
+          const suave = 0.5 - 0.5 * Math.cos(Math.PI * p);
+          quadroVideo(1 + 0.05 * suave);
           barraIn.style.width = (p * 100).toFixed(1) + '%';
           if (p >= 1) resolve(); else requestAnimationFrame(quadro);
         };
