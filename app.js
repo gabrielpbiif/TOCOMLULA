@@ -316,8 +316,7 @@
       await new Promise(resolve => {
         const quadro = () => {
           const t = Math.max(0, c.currentTime - t0), p = Math.min(1, t / dur);
-          const pulso = 1 + 0.08 * p + 0.012 * Math.max(0, Math.cos(t * Math.PI * 4));
-          pintar(g, k, pulso);
+          pintar(g, k, 1);   // arte parada: só a música toca
           barraIn.style.width = (p * 100).toFixed(1) + '%';
           if (p >= 1) resolve(); else requestAnimationFrame(quadro);
         };
